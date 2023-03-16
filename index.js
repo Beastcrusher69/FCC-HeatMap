@@ -15,6 +15,7 @@ const req= new XMLHttpRequest();
             let width = ((array.length)/12)*cw+(2*margin);
             let height = 12*ch + 2*margin;
             let baseTemp = data.baseTemperature;
+            let tooltip = d3.select('#tooltip');
             let colors=["rgb(69, 117, 180)",
                         "rgb(116, 173, 209)",
                         "rgb(171, 217, 233)",
@@ -23,10 +24,12 @@ const req= new XMLHttpRequest();
                         "rgb(254, 224, 144)",
                         "rgb(253, 174, 97)",
                         "rgb(244, 109, 67)",
-                        "rgb(215, 48, 39)"]
+                        "rgb(215, 48, 39)",];
+            let temps = [2.8,3.9,5.0,6.1,7.2,8.3,9.5,10.6,11.7]            
 
             const svg = d3.select("#container")
-                          .append("svg");
+                          .append("svg")
+                          .attr("id","heatmap");
 
             svg.attr("width",width)
                .attr("height",height);
@@ -36,32 +39,18 @@ const req= new XMLHttpRequest();
                                     d3.max(array,(d) => { return d.year;})]) 
                             .range([margin,width-margin]);
                             
-            const xAxis = d3.axisBottom(xScale).ticks(20);
-
-            let yDomain= [
-            { num:1, month:"January"},
-            { num:2, month:"February"},
-            { num:3, month:"March"},
-            { num:4, month:"April"},
-            { num:5, month:"May"},
-            { num:6, month:"June"},
-            { num:7, month:"July"},
-            { num:8, month:"August"},
-            { num:9, month:"September"},
-            { num:10, month:"October"},
-            { num:11, month:"November"},
-            { num:12, month:"December"} ];
+            const xAxis = d3.axisBottom(xScale).tickFormat(d3.format('d'));
 
             svg.append("g")
                 .attr("transform", "translate(0," + (height - margin) + ")")
                 .attr("id","x-axis")
                 .call(xAxis);  
                 
-            const yScale =d3.scaleLinear()
-                            .domain([d3.min(yDomain,(d) => { return d.num}),d3.max(yDomain,(d) => { return d.num})])
-                            .range([height-margin,margin]);
+            const yScale =d3.scaleTime()
+                            .domain([new Date(0,0,0,0,0,0,0),new Date(0,12,0,0,0,0,0)])
+                            .range([margin,height - margin]);
                        
-            const yAxis = d3.axisLeft(yScale).ticks(12);
+            const yAxis = d3.axisLeft(yScale).tickFormat(d3.timeFormat("%B"));
             
             svg.append("g")
                 .attr("transform","translate(" + margin + ",0)")                
@@ -79,7 +68,7 @@ const req= new XMLHttpRequest();
                .attr("width",cw)
                .attr("height",ch)
                .attr("x",(d) => { return xScale(d.year)})
-               .attr("y",(d) => { return yScale(d.month)})
+               .attr("y",(d) => { return yScale(new Date(0,(d.month) - 1,0,0,0,0,0));})
                .attr("fill",(d) => {
 
                 let t = d.variance + baseTemp ;
@@ -111,8 +100,44 @@ const req= new XMLHttpRequest();
                         return colors[8];
                 }
                })
+               .on("mouseover",(d) => {
+                tooltip.transition().style('visibility','visible');
+                tooltip.attr('data-year',d.year);
 
-
-                            
+                document.getElementById('tooltip').innerHTML = "<p>" + (d.year) + "</p><p>" + (d.month) + "</p><p>" + (d.variance) + "</p>" ;
                 
+               })
+               .on("mouseout",() => {
+                tooltip.transition().style('visibility','hidden');
+               })
+
+               //legend 
+
+               let pad = 20;
+               let w = 9*20 + 2*pad ;
+               let h = 20 + 2*pad;
+               let legend = d3.select("#legend");
+
+               legend.attr("width",w)
+                     .attr("height",h) 
+
+               let legendScale = d3.scaleLinear()
+                                   .domain(d3.extent(temps))
+                                   .range([pad,w-pad]);
+
+               let legendAxis = d3.axisBottom(legendScale);
+               
+                legend.append('g')
+                      .call(legendAxis)
+                      .attr("transform","translate(0," + pad + ")")   
+
+                legend.selectAll("rect")
+                      .data(colors)
+                      .enter()
+                      .append("rect")
+                      .attr("width",20)
+                      .attr("height",20)
+                      .attr("x",(d,i) => pad + (20*i))
+                      .attr("y",0) 
+                      .attr("fill",(d) => d)
         }
